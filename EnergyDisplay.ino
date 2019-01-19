@@ -4,6 +4,7 @@
 #include <GxGDEW042T2/GxGDEW042T2.cpp>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
+#include "esp_system.h"
 #include "bgimage.h"
 #include "arrowimage.h"
 #include "arrowrightimage.h"
@@ -16,6 +17,7 @@
 
 GxIO_Class io(SPI, SS, 17, 16);
 GxEPD_Class display(io, 16, 4); 
+hw_timer_t *timer = NULL;
 
 const char* ssid     = "";
 const char* password = "";
@@ -24,6 +26,11 @@ const char* host = "";
 
 const int GRAPH_SIZE = 130;
 int useGraph[GRAPH_SIZE];
+
+void IRAM_ATTR resetModule(){
+    ets_printf("reboot\n");
+    esp_restart_noos();
+}
 
 void setup()
 {
@@ -34,7 +41,7 @@ void setup()
 
     display.fillScreen(GxEPD_WHITE);
     bigText(90, 105, "Solar Monitor");
-    smallText(90, 135, "(c)2018 Josef Jahn");
+    smallText(90, 135, "(c)2019 Josef Jahn");
     display.update();
 
     // We start by connecting to a WiFi network
@@ -44,12 +51,11 @@ void setup()
     Serial.print("Connecting to ");
     Serial.println(ssid);
 
-//    WiFi.begin(ssid, password);
-//    while (WiFi.status() != WL_CONNECTED) {
-//        delay(500);
-//        Serial.print(".");
-//    }
-
+    // Watchdog timer
+    timer = timerBegin(0, 80, true); //timer 0, div 80
+    timerAttachInterrupt(timer, &resetModule, true); //reset ESP if timer runs out
+    timerAlarmWrite(timer, 60000000*10, false); //timeout after 10 minutes
+    timerAlarmEnable(timer); //enable interrupt
 }
 
 void wifiReconnect() {
@@ -69,13 +75,10 @@ int value = 0;
 
 void loop()
 {
+    timerWrite(timer, 0); //reset watchdog timer
     delay(5000);
-
-//    if (WiFi.status() != WL_CONNECTED) {
-      wifiReconnect();
-//      delay (1000);
-//    }
-    
+    wifiReconnect();
+   
     Serial.print("connecting to ");
     Serial.println(host);
 
@@ -84,6 +87,7 @@ void loop()
     const int httpPort = 80;
     if (!client.connect(host, httpPort)) {
         Serial.println("connection failed");
+        delay(30000);
         return;
     }
 
