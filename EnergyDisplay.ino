@@ -29,7 +29,7 @@ int useGraph[GRAPH_SIZE];
 
 void IRAM_ATTR resetModule(){
     ets_printf("reboot\n");
-    esp_restart_noos();
+    esp_restart();
 }
 
 void setup()
@@ -41,7 +41,7 @@ void setup()
 
     display.fillScreen(GxEPD_WHITE);
     bigText(90, 105, "Solar Monitor");
-    smallText(90, 135, "(c)2019 Josef Jahn");
+    smallText(90, 135, "(c)2022 Josef Jahn");
     display.update();
 
     // We start by connecting to a WiFi network
@@ -61,9 +61,14 @@ void setup()
 void wifiReconnect() {
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.begin(ssid, password);
+    int i = 0;
     while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
+        delay(1000);
         Serial.print(".");
+        i = i + 1;
+        if (i > 20) {
+          esp_restart();
+        }
     }
     Serial.println("");
     Serial.println("WiFi connected");
@@ -406,4 +411,3 @@ void bigText(uint16_t x, uint16_t y, String text)
   display.setCursor(x, y+25);
   display.print(text); 
 } 
-
